@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 ⏱ *Time:* ${timestamp || new Date().toISOString()}
     `;
 
-    const telegramUrl = `https://api.telegram.org/bot${7281059131}/sendMessage`;
+    const telegramUrl = `https://api.telegram.org/bot${8506266544}/sendMessage`;
     const tgRes = await fetch(telegramUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
